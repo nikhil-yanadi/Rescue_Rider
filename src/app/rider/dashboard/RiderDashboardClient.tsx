@@ -97,6 +97,7 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
     { label: "Rescue In Progress", status: "pending" },
     { label: "Mission Completed", status: "pending" },
   ]);
+  const [congratsNotif, setCongratsNotif] = useState<string | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const alertAudioRef = useRef<HTMLAudioElement | null>(null);
   const milestoneTrackingRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -226,6 +227,27 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
 
     return () => { supabase.removeChannel(channel); };
   }, [rider.id, rider.verification_status]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Realtime: listen for award notifications (streak & badge from admin)
+  useEffect(() => {
+    const channel = supabase
+      .channel(`rider-awards-${rider.id}`)
+      .on("postgres_changes", {
+        event: "INSERT", schema: "public", table: "notifications",
+        filter: `rider_id=eq.${rider.id}`,
+      }, async (payload) => {
+        const notif = payload.new as { message: string; type: string };
+        if (notif.type === "mission_update" && notif.message.includes("Congratulations")) {
+          setCongratsNotif(notif.message);
+          // Refresh rider stats
+          const { data: updated } = await supabase
+            .from("riders").select("*").eq("id", rider.id).single();
+          if (updated) setRider(updated as Rider);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [rider.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleAvailability = async () => {
     setIsTogglingAvailability(true);
@@ -369,7 +391,40 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
       </nav>
 
       <div className="max-w-2xl mx-auto w-full px-4 pt-4">
-        {/* ── INCOMING EMERGENCY ─────────────────────────────────────────────────── */}
+        {/* ── CONGRATULATIONS BANNER ─────────────────────────────────────────────── */}
+        {congratsNotif && (
+          <div className="mb-4 relative overflow-hidden bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 rounded-2xl p-5 text-white shadow-2xl shadow-orange-500/30">
+            {/* Animated sparkles */}
+            <div className="absolute top-2 right-4 text-2xl animate-bounce">✨</div>
+            <div className="absolute top-6 right-12 text-xl animate-ping opacity-60">⭐</div>
+            <div className="absolute bottom-3 right-8 text-lg animate-bounce" style={{ animationDelay: "0.3s" }}>🎉</div>
+            <div className="flex items-start gap-3">
+              <div className="text-4xl">🏆</div>
+              <div className="flex-1">
+                <p className="font-black text-xl mb-1">Congratulations!</p>
+                <p className="text-sm opacity-90 leading-relaxed">{congratsNotif}</p>
+                <div className="flex items-center gap-2 mt-3">
+                  <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full">
+                    {getBadgeLevel(rider.hero_points).icon} {getBadgeLevel(rider.hero_points).name}
+                  </span>
+                  <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full">
+                    🔥 {rider.rescue_streak} Streak
+                  </span>
+                  <span className="text-xs font-bold bg-white/20 px-2 py-1 rounded-full">
+                    ⚡ {rider.hero_points} pts
+                  </span>
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => setCongratsNotif(null)}
+              className="absolute top-3 right-3 text-white/70 hover:text-white text-xs font-bold bg-white/10 px-2 py-1 rounded-lg"
+            >
+              ✕
+            </button>
+          </div>
+        )} 
+        {/* ── INCOMING EMERGENCY ──────────────────────────────────────────────── */}
         {incomingEmergency && (
           <div className="mb-4 bg-emergency-600 rounded-2xl p-4 text-white shadow-2xl shadow-emergency-600/40">
             <div className="flex items-center gap-2 mb-2">

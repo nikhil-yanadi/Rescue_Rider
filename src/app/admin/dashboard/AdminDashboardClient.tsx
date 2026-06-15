@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   Users, AlertTriangle, CheckCircle, XCircle, Clock, Shield,
   LogOut, BarChart3, Search, Filter, Loader2, ChevronDown,
-  Activity, TrendingUp,
+  Activity, TrendingUp, Award, Star,
 } from "lucide-react";
 import Logo from "@/components/ui/Logo";
 import StatusBadge from "@/components/ui/StatusBadge";
@@ -38,6 +38,8 @@ export default function AdminDashboardClient({ adminUser, riders: initialRiders,
   const [expandedReview, setExpandedReview] = useState<string | null>(null);
   const [expandedFeedback, setExpandedFeedback] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState<{ [key: string]: string }>({});
+  const [awardingId, setAwardingId] = useState<string | null>(null);
+  const [awardedIds, setAwardedIds] = useState<Set<string>>(new Set());
 
   // Realtime: listen for new emergencies and status changes
   useEffect(() => {
@@ -142,6 +144,58 @@ export default function AdminDashboardClient({ adminUser, riders: initialRiders,
       console.error("Failed to update review:", error);
     }
     setProcessingId(null);
+  };
+
+  const handleAwardStreakAndBadge = async (feedback: any) => {
+    const riderId = feedback.rider_id;
+    if (!riderId || awardedIds.has(feedback.id)) return;
+    setAwardingId(feedback.id);
+
+    try {
+      // Get current rider stats
+      const { data: riderData } = await supabase
+        .from("riders")
+        .select("hero_points, rescue_streak, full_name")
+        .eq("id", riderId)
+        .single();
+
+      if (!riderData) throw new Error("Rider not found");
+
+      const bonusPoints = feedback.rating >= 5 ? 100 : feedback.rating >= 4 ? 75 : 50;
+      const newPoints = riderData.hero_points + bonusPoints;
+      const newStreak = riderData.rescue_streak + 1;
+
+      // Update rider points and streak
+      await supabase
+        .from("riders")
+        .update({ hero_points: newPoints, rescue_streak: newStreak })
+        .eq("id", riderId);
+
+      // Log hero points
+      await supabase.from("hero_points").insert({
+        rider_id: riderId,
+        points: bonusPoints,
+        reason: `Admin award — ${feedback.rating}⭐ victim feedback`,
+        emergency_id: feedback.emergency_id,
+      });
+
+      // Insert notification to rider
+      await supabase.from("notifications").insert({
+        rider_id: riderId,
+        emergency_id: feedback.emergency_id,
+        type: "mission_update",
+        message: `🏆 Congratulations! Admin awarded you ${bonusPoints} hero points + streak boost for your ${feedback.rating}⭐ rescue!`,
+        is_read: false,
+      });
+
+      setAwardedIds((prev) => { const s = new Set(prev); s.add(feedback.id); return s; });
+      alert(`✅ Awarded ${bonusPoints} hero points + streak boost to ${riderData.full_name}!`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to award. Please try again.");
+    } finally {
+      setAwardingId(null);
+    }
   };
 
   const filteredRiders = riders.filter((r) => {
@@ -742,6 +796,41 @@ export default function AdminDashboardClient({ adminUser, riders: initialRiders,
                               <div className="bg-gray-50 dark:bg-gray-800 rounded-lg px-3 py-2 mb-4">
                                 <p className="text-xs text-gray-400">Feedback</p>
                                 <p className="text-sm text-gray-900 dark:text-white">{feedback.feedback}</p>
+                              </div>
+                            )}
+
+                            {/* Award Streak & Badge Button */}
+                            {awardedIds.has(feedback.id) ? (
+                              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
+                                <CheckCircle className="w-4 h-4 text-green-600" />
+                                <p className="text-sm font-bold text-green-700 dark:text-green-400">
+                                  Streak & Badge awarded!
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="space-y-2">
+                                <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold ${
+                                  feedback.rating >= 5 ? "bg-purple-50 dark:bg-purple-900/20 text-purple-700 dark:text-purple-300" :
+                                  feedback.rating >= 4 ? "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300" :
+                                  "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300"
+                                }`}>
+                                  <Star className="w-3 h-3" />
+                                  {feedback.rating >= 5 ? "Excellent rescue — Award 100 pts + streak" :
+                                   feedback.rating >= 4 ? "Great rescue — Award 75 pts + streak" :
+                                   "Good rescue — Award 50 pts + streak"}
+                                </div>
+                                <button
+                                  onClick={() => handleAwardStreakAndBadge(feedback)}
+                                  disabled={awardingId === feedback.id}
+                                  className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 disabled:opacity-60 text-white font-black rounded-xl transition-all shadow-lg shadow-orange-500/20"
+                                >
+                                  {awardingId === feedback.id ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Award className="w-4 h-4" />
+                                  )}
+                                  🏆 Award Streak & Badge to Rider
+                                </button>
                               </div>
                             )}
                           </div>
