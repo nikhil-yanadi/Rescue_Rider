@@ -89,6 +89,7 @@ export default function RiderRegisterPage() {
         phone: form.phone,
         delivery_company: form.deliveryCompany,
         employee_id: form.employeeId,
+        avatar_url: null,
         verification_status: "pending",
         is_available: false,
         hero_points: 0,

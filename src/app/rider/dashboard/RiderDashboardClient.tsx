@@ -111,12 +111,15 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
       .maybeSingle();
 
     if (data && data.emergencies) {
-      setActiveMission({
-        assignment_id: data.id,
-        accepted_at: data.accepted_at || new Date().toISOString(),
-        emergency: data.emergencies as ActiveMission["emergency"],
-      });
-      updateMilestones(data.emergencies.status);
+      const emergency = Array.isArray(data.emergencies) ? data.emergencies[0] : data.emergencies;
+      if (emergency) {
+        setActiveMission({
+          assignment_id: data.id,
+          accepted_at: data.accepted_at || new Date().toISOString(),
+          emergency: emergency as ActiveMission["emergency"],
+        });
+        updateMilestones(emergency.status);
+      }
     }
   }, [rider.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -312,7 +315,7 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
         const { data: fresh } = await supabase
           .from("emergency_assignments").select("*, emergencies(*)")
           .eq("rider_id", rider.id).order("created_at", { ascending: false }).limit(10);
-        if (fresh) setAssignments(fresh as Assignment[]);
+        if (fresh) setAssignments(fresh as unknown as Assignment[]);
         router.refresh();
 
       } else if (action === "backup") {
@@ -460,7 +463,7 @@ export default function RiderDashboardClient({ rider: initialRider, assignments:
                   <div className="space-y-1.5">
                     {[
                       { time: "Just now", label: "Last known location", color: "bg-emergency-500" },
-                      { time: `${Math.floor((Date.now() - new Date(activeMission.emergency.created_at || activeMission.accepted_at).getTime()) / 60000)} min ago`, label: "Emergency triggered here", color: "bg-orange-400" },
+                      { time: `${Math.floor((Date.now() - new Date(activeMission.accepted_at).getTime()) / 60000)} min ago`, label: "Emergency triggered here", color: "bg-orange-400" },
                       { time: `${Math.floor((Date.now() - new Date(activeMission.accepted_at).getTime()) / 60000) + 1} min ago`, label: "Mission accepted", color: "bg-blue-400" },
                     ].map((point, i) => (
                       <div key={i} className="flex items-center gap-2.5">

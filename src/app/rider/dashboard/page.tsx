@@ -31,5 +31,6 @@ export default async function RiderDashboardPage() {
     .order("created_at", { ascending: false })
     .limit(10);
 
-  return <RiderDashboardClient rider={rider} assignments={assignments ?? []} />;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return <RiderDashboardClient rider={rider} assignments={(assignments ?? []) as any} />;
 }

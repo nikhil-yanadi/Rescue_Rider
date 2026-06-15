@@ -44,19 +44,24 @@ export type Database = {
           address: string | null;
           threat_description: string | null;
           status: "pending" | "assigned" | "in_progress" | "completed" | "cancelled";
-          severity_level: "low" | "medium" | "high" | "critical";
+          severity_level: "low" | "medium" | "high" | "critical" | null;
           victim_contact: string | null;
           assigned_rider_id: string | null;
           created_at: string;
           updated_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["emergencies"]["Row"],
-          "id" | "created_at" | "updated_at"
-        >;
-        Update: Partial<
-          Database["public"]["Tables"]["emergencies"]["Insert"]
-        >;
+        Insert: {
+          emergency_id: string;
+          latitude: number;
+          longitude: number;
+          address?: string | null;
+          threat_description?: string | null;
+          status?: "pending" | "assigned" | "in_progress" | "completed" | "cancelled";
+          severity_level?: "low" | "medium" | "high" | "critical" | null;
+          victim_contact?: string | null;
+          assigned_rider_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["emergencies"]["Insert"]>;
       };
       emergency_media: {
         Row: {
@@ -85,13 +90,15 @@ export type Database = {
           completed_at: string | null;
           created_at: string;
         };
-        Insert: Omit<
-          Database["public"]["Tables"]["emergency_assignments"]["Row"],
-          "id" | "created_at"
-        >;
-        Update: Partial<
-          Database["public"]["Tables"]["emergency_assignments"]["Insert"]
-        >;
+        Insert: {
+          emergency_id: string;
+          rider_id: string;
+          status?: "notified" | "accepted" | "rejected" | "completed";
+          notified_at?: string;
+          accepted_at?: string | null;
+          completed_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["emergency_assignments"]["Insert"]>;
       };
       reviews: {
         Row: {
