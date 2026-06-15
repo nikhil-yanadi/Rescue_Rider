@@ -725,7 +725,7 @@ export default function AdminDashboardClient({ adminUser, riders: initialRiders,
             <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-100 dark:border-gray-800 overflow-hidden">
               <div className="px-4 py-3 border-b border-gray-100 dark:border-gray-800">
                 <h3 className="font-bold text-gray-900 dark:text-white">
-                  Victim Feedback ({victimFeedback.length})
+                  Victim Feedback — {victimFeedback.length} reviews
                 </h3>
               </div>
               {victimFeedback.length === 0 ? (
