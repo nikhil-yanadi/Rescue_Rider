@@ -29,7 +29,8 @@ export default function AdminDashboardClient({ adminUser, riders: initialRiders,
   const [riders, setRiders] = useState(initialRiders);
   const [emergencies, setEmergencies] = useState(initialEmergencies);
   const [rescueReviews, setRescueReviews] = useState<RescueReview[]>([]);
-  const [victimFeedback, setVictimFeedback] = useState<Review[]>([]);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [victimFeedback, setVictimFeedback] = useState<any[]>([]);
   const [riderFilter, setRiderFilter] = useState<RiderFilter>("all");
   const [riderSearch, setRiderSearch] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
